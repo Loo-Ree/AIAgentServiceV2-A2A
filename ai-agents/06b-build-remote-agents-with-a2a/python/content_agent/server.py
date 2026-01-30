@@ -6,7 +6,7 @@ from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from dotenv import load_dotenv
-from outline_agent.agent_executor import create_foundry_agent_executor
+from content_agent.agent_executor import create_foundry_agent_executor
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
@@ -15,31 +15,32 @@ from starlette.routing import Route
 load_dotenv()
 
 host = os.environ["SERVER_URL"]
-port = os.environ["OUTLINE_AGENT_PORT"]
+port = os.environ["CONTENT_AGENT_PORT"]
 
 # Define agent skills
 skills = [
     AgentSkill(
-        id='generate_outline',
-        name='Generate Outline',
-        description='Generates an outline based on a topic',
-        tags=['outline'],
+        id='generate_content',
+        name='Generate Content',
+        description='Generates brief blog content (max 50 lines) based on a topic, using Bing search for grounding',
+        tags=['content', 'blog', 'writing'],
         examples=[
-            'Can you give me an outline for this article?',
+            'Can you write content about this topic?',
+            'Generate content for this article',
         ],
     ),
 ]
 
 # Create agent card
 agent_card = AgentCard(
-    name='AI Foundry Outline Agent',
-    description='An intelligent outline generator agent powered by Azure AI Foundry. '
-    'I can help you generate outlines for your articles.',
+    name='AI Foundry Content Agent',
+    description='An intelligent content generator agent powered by Azure AI Foundry with Bing search. '
+    'I can help you generate brief, well-researched blog content (max 50 lines) grounded in current information.',
     url=f'http://{host}:{port}/',
     version='1.0.0',
     default_input_modes=['text'],
     default_output_modes=['text'],
-    capabilities=AgentCapabilities(streaming=True),
+    capabilities=AgentCapabilities(),
     skills=skills,
 )
 
@@ -61,7 +62,7 @@ routes = a2a_app.routes()
 
 # Add health check endpoint
 async def health_check(request: Request) -> PlainTextResponse:
-    return PlainTextResponse('AI Foundry Outline Agent is running!')
+    return PlainTextResponse('AI Foundry Content Agent is running!')
 
 routes.append(Route(path='/health', methods=['GET'], endpoint=health_check))
 

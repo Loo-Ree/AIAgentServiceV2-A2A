@@ -13,10 +13,19 @@ routing_agent = None
 async def lifespan(app: FastAPI):
     global routing_agent
     print("Starting up: Initializing routing agent...")
-    routing_agent = await RoutingAgent.create([
-        f"http://{os.environ['SERVER_URL']}:{os.environ['TITLE_AGENT_PORT']}",
-        f"http://{os.environ['SERVER_URL']}:{os.environ['OUTLINE_AGENT_PORT']}",
-    ])
+    
+    # Get configurable timeout from environment (default: 120 seconds)
+    agent_timeout = float(os.getenv('AGENT_TIMEOUT', '120'))
+    print(f"Using agent communication timeout: {agent_timeout}s")
+    
+    routing_agent = await RoutingAgent.create(
+        remote_agent_addresses=[
+            f"http://{os.environ['SERVER_URL']}:{os.environ['TITLE_AGENT_PORT']}",
+            f"http://{os.environ['SERVER_URL']}:{os.environ['OUTLINE_AGENT_PORT']}",
+            f"http://{os.environ['SERVER_URL']}:{os.environ['CONTENT_AGENT_PORT']}",
+        ],
+        agent_timeout=agent_timeout
+    )
     await routing_agent.create_agent()  # Now async in v2
     print("Routing agent initialized.")
     yield

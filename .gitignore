@@ -23,6 +23,7 @@ __pycache__/
 *.pyd
 .Python
 venv/
+.venv/
 env/
 
 # Development settings

@@ -1,10 +1,11 @@
 python-dotenv
 httpx
 azure-identity
-azure-ai-projects
+azure-ai-projects==2.0.0b3
 openai
 aiohttp
 uvicorn
 starlette
 sse-starlette
 fastapi
+a2a-sdk

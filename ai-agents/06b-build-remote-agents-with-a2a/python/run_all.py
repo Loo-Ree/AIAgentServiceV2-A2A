@@ -25,6 +25,11 @@ servers = [
         "port": os.environ["OUTLINE_AGENT_PORT"]
     },
     {
+        "name": "content_agent_server",
+        "module": "content_agent.server:app",
+        "port": os.environ["CONTENT_AGENT_PORT"]
+    },
+    {
         "name": "routing_agent_server",
         "module": "routing_agent.server:app",
         "port": os.environ["ROUTING_AGENT_PORT"]
@@ -33,22 +38,27 @@ servers = [
 
 server_procs = []
 
-async def wait_for_server_ready(server, timeout=30):
+async def wait_for_server_ready(server, timeout=None):
+    # Get configurable health check timeout from environment (default: 60 seconds)
+    if timeout is None:
+        timeout = float(os.getenv('HEALTH_CHECK_TIMEOUT', '60'))
+    
     async with httpx.AsyncClient() as client:
         start = time.time()
         while True:
             try:
                 health_url = f"http://{server_url}:{server['port']}/health"
-                r = await client.get(health_url, timeout=2)
+                # Use a reasonable request timeout (30s) separate from overall health check timeout
+                r = await client.get(health_url)
                 if r.status_code == 200:
                     print(f"✅ {server['name']} is healthy and ready!")
                     return True
             except Exception:
                 pass
             if time.time() - start > timeout:
-                print(f"❌ Timeout waiting for server health at {health_url}")
+                print(f"❌ Timeout waiting for server health at {health_url} (timeout: {timeout}s)")
                 return False
-            await asyncio.sleep(1)
+            await asyncio.sleep(5)
 
 def stream_subprocess_output(process):
     while True:
