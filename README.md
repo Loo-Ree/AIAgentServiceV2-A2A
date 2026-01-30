@@ -20,18 +20,20 @@ This project implements a **distributed multi-agent system** that enables intell
 - **Agent-to-Agent (A2A) Protocol** for inter-agent communication
 - **FastAPI/Starlette** for HTTP endpoints and server management
 - **Async/await patterns** for concurrent request handling
+- **Configurable timeouts** for reliable agent-to-agent communication
 
 ### Key Capabilities
 
-The system consists of three specialized agents:
+The system consists of four specialized agents:
 
 1. **Title Agent** - Generates catchy blog post titles from topics
-2. **Outline Agent** - Creates structured outlines for articles
-3. **Routing Agent** - Intelligently delegates user requests to specialized agents
+2. **Outline Agent** - Creates structured outlines for articles (4-6 sections)
+3. **Content Agent** - Generates brief, engaging blog content (max 100 words) **with Bing Search grounding** for current, accurate information
+4. **Routing Agent** - Orchestrates requests and delegates to specialized agents in parallel
 
 ### Use Case
 
-A user sends a natural language request (e.g., "Create a title for an article about Python async programming"). The Routing Agent analyzes the request, determines which specialized agent should handle it, delegates the task via the A2A protocol, and returns the result to the user.
+A user sends a natural language request (e.g., "Create a blog post about Python async programming"). The Routing Agent simultaneously delegates to all three specialist agents (Title, Outline, Content) via the A2A protocol, waits for all responses, and returns a combined result with title, outline, and content grounded in current web information.
 
 ---
 
@@ -72,44 +74,45 @@ A user sends a natural language request (e.g., "Create a title for an article ab
 │  └────────────────────────┬─────────────────────────────────┘  │
 └───────────────────────────┼────────────────────────────────────┘
                             │ A2A Protocol
-              ┌─────────────┴──────────────┐
-              │                            │
-              ▼                            ▼
-┌─────────────────────────┐   ┌──────────────────────────┐
-│  Title Agent Server     │   │  Outline Agent Server    │
-│  (title_agent/)         │   │  (outline_agent/)        │
-│                         │   │                          │
-│  ┌──────────────────┐   │   │  ┌────────────────────┐  │
-│  │ A2A Server       │   │   │  │ A2A Server         │  │
-│  │ (server.py)      │   │   │  │ (server.py)        │  │
-│  │ - AgentCard      │   │   │  │ - AgentCard        │  │
-│  │ - A2A Routes     │   │   │  │ - A2A Routes       │  │
-│  └────────┬─────────┘   │   │  └──────────┬─────────┘  │
-│           │             │   │             │            │
-│  ┌────────▼─────────┐   │   │  ┌──────────▼─────────┐  │
-│  │ AgentExecutor    │   │   │  │ AgentExecutor      │  │
-│  │ (agent_executor) │   │   │  │ (agent_executor)   │  │
-│  │ - Task handling  │   │   │  │ - Task handling    │  │
-│  │ - Status updates │   │   │  │ - Status updates   │  │
-│  └────────┬─────────┘   │   │  └──────────┬─────────┘  │
-│           │             │   │             │            │
-│  ┌────────▼─────────┐   │   │  ┌──────────▼─────────┐  │
-│  │ TitleAgent       │   │   │  │ OutlineAgent       │  │
-│  │ (agent.py)       │   │   │  │ (agent.py)         │  │
-│  │ - AIProjectClient│   │   │  │ - AIProjectClient  │  │
-│  │ - Agent v2       │   │   │  │ - Agent v2         │  │
-│  └──────────────────┘   │   │  └────────────────────┘  │
-└─────────────────────────┘   └──────────────────────────┘
-            │                            │
-            └────────────┬───────────────┘
-                         │
-                         ▼
-        ┌─────────────────────────────────────┐
-        │   Azure AI Foundry Service v2       │
-        │   - Agent Hosting                   │
-        │   - Model Deployment                │
-        │   - Conversation Management         │
-        └─────────────────────────────────────┘
+              ┌─────────────┴──────────────┬──────────────────────┐
+              │                            │                      │
+              ▼                            ▼                      ▼
+┌─────────────────────────┐   ┌──────────────────────────┐   ┌──────────────────────────┐
+│  Title Agent Server     │   │  Outline Agent Server    │   │  Content Agent Server    │
+│  (title_agent/)         │   │  (outline_agent/)        │   │  (content_agent/)        │
+│                         │   │                          │   │                          │
+│  ┌──────────────────┐   │   │  ┌────────────────────┐  │   │  ┌────────────────────┐  │
+│  │ A2A Server       │   │   │  │ A2A Server         │  │   │  │ A2A Server         │  │
+│  │ (server.py)      │   │   │  │ (server.py)        │  │   │  │ (server.py)        │  │
+│  │ - AgentCard      │   │   │  │ - AgentCard        │  │   │  │ - AgentCard        │  │
+│  │ - A2A Routes     │   │   │  │ - A2A Routes       │  │   │  │ - A2A Routes       │  │
+│  └────────┬─────────┘   │   │  └──────────┬─────────┘  │   │  └──────────┬─────────┘  │
+│           │             │   │             │            │   │             │            │
+│  ┌────────▼─────────┐   │   │  ┌──────────▼─────────┐  │   │  ┌──────────▼─────────┐  │
+│  │ AgentExecutor    │   │   │  │ AgentExecutor      │  │   │  │ AgentExecutor      │  │
+│  │ (agent_executor) │   │   │  │ (agent_executor)   │  │   │  │ (agent_executor)   │  │
+│  │ - Task handling  │   │   │  │ - Task handling    │  │   │  │ - Task handling    │  │
+│  │ - Status updates │   │   │  │ - Status updates   │  │   │  │ - Status updates   │  │
+│  └────────┬─────────┘   │   │  └──────────┬─────────┘  │   │  └──────────┬─────────┘  │
+│           │             │   │             │            │   │             │            │
+│  ┌────────▼─────────┐   │   │  ┌──────────▼─────────┐  │   │  ┌──────────▼─────────┐  │
+│  │ TitleAgent       │   │   │  │ OutlineAgent       │  │   │  │ ContentAgent       │  │
+│  │ (agent.py)       │   │   │  │ (agent.py)         │  │   │  │ (agent.py)         │  │
+│  │ - AIProjectClient│   │   │  │ - AIProjectClient  │  │   │  │ - AIProjectClient  │  │
+│  │ - Agent v2       │   │   │  │ - Agent v2         │  │   │  │ - Agent v2         │  │
+│  └──────────────────┘   │   │  └────────────────────┘  │   │  │ - Bing Grounding   │  │
+└─────────────────────────┘   └──────────────────────────┘   │  └────────────────────┘  │
+            │                            │                    │             │            │
+            └────────────┬───────────────┴────────────────────┘             │            │
+                         │                                                  │            │
+                         ▼                                                  ▼            │
+        ┌─────────────────────────────────────┐              ┌──────────────────────────┐│
+        │   Azure AI Foundry Service v2       │              │   Bing Search API        ││
+        │   - Agent Hosting                   │              │   - Web Search           ││
+        │   - Model Deployment                │              │   - Grounding Data       ││
+        │   - Conversation Management         │              └──────────────────────────┘│
+        └─────────────────────────────────────┘                                         │
+                                                               ←───────────────────────────┘
 ```
 
 ### Architecture Layers
@@ -126,12 +129,12 @@ A user sends a natural language request (e.g., "Create a title for an article ab
   - `server.py`: FastAPI application exposing HTTP endpoints
   - `agent.py`: Core routing logic with Azure AI Foundry integration
 
-#### 3. **Specialist Agent Layer** (`title_agent/`, `outline_agent/`)
+#### 3. **Specialist Agent Layer** (`title_agent/`, `outline_agent/`, `content_agent/`)
 - **Purpose**: Domain-specific task execution
 - **Components**:
   - `server.py`: A2A-compliant server exposing agent capabilities
   - `agent_executor.py`: Task lifecycle management
-  - `agent.py`: Azure AI Foundry agent implementation
+  - `agent.py`: Azure AI Foundry agent implementation (Content Agent includes Bing grounding)
 
 #### 4. **Azure AI Foundry Layer** (Cloud Service)
 - **Purpose**: AI model hosting and agent runtime
@@ -194,6 +197,7 @@ async def main()
 - `SERVER_URL`: Host for all servers (e.g., "127.0.0.1")
 - `TITLE_AGENT_PORT`: Port for Title Agent
 - `OUTLINE_AGENT_PORT`: Port for Outline Agent
+- `CONTENT_AGENT_PORT`: Port for Content Agent
 - `ROUTING_AGENT_PORT`: Port for Routing Agent
 
 ---
@@ -236,7 +240,7 @@ async def handle_message(request: Request):
 1. **Remote Agent Management**:
    - Discover and connect to remote A2A agents
    - Retrieve and cache AgentCard metadata
-   - Maintain A2A client connections
+   - Maintain A2A client connections with configurable timeouts
 
 2. **Azure AI Foundry Integration**:
    - Create and manage Azure AI agent with function tools
@@ -246,7 +250,7 @@ async def handle_message(request: Request):
 3. **Request Processing**:
    - Accept user messages
    - Let Azure AI agent decide which remote agent to invoke
-   - Execute function calls to delegate tasks
+   - Execute function calls to delegate tasks with timeout protection
    - Return final responses to user
 
 **Key Classes and Methods**:
@@ -255,74 +259,117 @@ async def handle_message(request: Request):
 class RemoteAgentConnections:
     """Wrapper for A2A client connection to a remote agent"""
     
-    def __init__(self, agent_card: AgentCard, agent_url: str)
-        # Initialize httpx client and A2AClient
+    def __init__(self, agent_card: AgentCard, agent_url: str, timeout: float = 120.0):
+        # Initialize httpx client with configurable timeout
+        # Default: 120 seconds for agent-to-agent communication
         # Store agent card metadata
     
-    async def send_message(self, message_request: SendMessageRequest)
+    async def send_message(self, message_request: SendMessageRequest):
         # Send A2A message to remote agent
         # Returns SendMessageResponse
 
 class RoutingAgent:
     """Main routing agent with Azure AI Foundry integration"""
     
-    def __init__(self, task_callback: Optional[TaskUpdateCallback])
+    def __init__(self, task_callback: Optional[TaskUpdateCallback], agent_timeout: float = 120.0):
         # Initialize Azure clients:
         # - DefaultAzureCredential for authentication
         # - AIProjectClient for agent management
         # - OpenAI client for conversation API
+        # - agent_timeout: Timeout in seconds for A2A communication (default: 120s)
         
     @classmethod
-    async def create(cls, remote_agent_addresses: list[str])
+    async def create(cls, remote_agent_addresses: list[str], task_callback: Optional[TaskUpdateCallback] = None, agent_timeout: float = 120.0):
         # Factory method for async initialization
-        # 1. Create instance
-        # 2. Connect to all remote agents
+        # 1. Create instance with specified timeout
+        # 2. Connect to all remote agents with timeout configuration
         # 3. Return initialized instance
     
-    async def _async_init_components(self, remote_agent_addresses: list[str])
+    async def _async_init_components(self, remote_agent_addresses: list[str]):
         # Connect to each remote agent via A2A protocol
         # Retrieve AgentCard from each agent
+        # Handle connection errors (ConnectError, TimeoutException)
         # Store connections in dictionary
     
-    def list_remote_agents(self) -> str
+    def list_remote_agents(self) -> str:
         # Return formatted list of available remote agents
         # Used in Azure AI agent instructions
     
-    async def send_message_to_agent(self, agent_name: str, task: str) -> str
+    async def send_message_to_agent(self, agent_name: str, task: str) -> str:
         # Function exposed as tool to Azure AI agent
         # 1. Validate agent exists
         # 2. Create A2A message request
-        # 3. Send to remote agent
+        # 3. Send to remote agent with timeout protection
         # 4. Return JSON-serialized response
+        # Handles multiple timeout scenarios:
+        #   - TimeoutException: Overall operation timeout
+        #   - ReadTimeout: Response reading timeout
+        #   - ConnectTimeout: Connection establishment timeout
+        # Error messages include timeout duration for debugging
     
-    async def create_agent(self)
+    async def create_agent(self):
         # Create Azure AI agent with function tools
         # 1. Define FunctionTool for send_message_to_agent
         # 2. Create agent with PromptAgentDefinition
         # 3. Create conversation for multi-turn chat
         # 4. Store agent and conversation IDs
     
-    async def process_user_message(self, user_message: str) -> str
-        # Main processing loop
-        # 1. Send user message to Azure AI agent
-        # 2. Check for function calls in response
-        # 3. Execute function calls (delegate to remote agents)
-        # 4. Send tool outputs back to Azure AI agent
-        # 5. Repeat until no more function calls
-        # 6. Return final text response
+    async def process_user_message(self, user_message: str) -> str:
+        # Main processing loop using parallel execution
+        # 1. Call all three specialist agents in parallel using asyncio.gather()
+        #    - Title Agent: generates title
+        #    - Outline Agent: generates outline
+        #    - Content Agent: generates content with Bing grounding
+        # 2. Wait for all agents with timeout protection (default: 120s each)
+        # 3. Parse and extract responses from A2A task data
+        # 4. Return combined JSON: {"title": "...", "outline": "...", "content": "..."}
+        # 5. Fail completely if any agent fails or times out (all-or-nothing)
     
-    async def close(self)
+    async def close(self):
         # Cleanup all connections
         # - Close A2A client connections
         # - Close OpenAI client
         # - Close project client
 ```
 
+**Timeout Configuration**:
+
+The routing agent supports configurable timeouts for agent-to-agent communication:
+
+```python
+# Default timeout (120 seconds)
+routing_agent = await RoutingAgent.create(
+    remote_agent_addresses=[...]
+)
+
+# Custom timeout (e.g., 60 seconds for faster failure)
+routing_agent = await RoutingAgent.create(
+    remote_agent_addresses=[...],
+    agent_timeout=60.0
+)
+
+# Extended timeout (e.g., 300 seconds for long-running tasks)
+routing_agent = await RoutingAgent.create(
+    remote_agent_addresses=[...],
+    agent_timeout=300.0
+)
+```
+
+**Timeout Error Handling**:
+
+The system provides detailed error messages for different timeout scenarios:
+
+- **Connection Timeout**: `"Connection timeout to {agent_name}"`
+- **Read Timeout**: `"Read timeout from {agent_name} (timeout: {timeout}s)"`
+- **General Timeout**: `"Timeout waiting for response from {agent_name} (timeout: {timeout}s)"`
+
+These errors are returned as JSON responses and propagate through the system for proper error handling.
+
 ---
 
-### 3. Specialist Agent Components (Title & Outline)
+### 3. Specialist Agent Components (Title, Outline & Content)
 
-Both Title Agent and Outline Agent follow the same architectural pattern, differing only in their specific AI instructions.
+All three specialist agents (Title, Outline, and Content) follow the same architectural pattern, differing only in their specific AI instructions and capabilities. The Content Agent additionally integrates **Bing Search grounding** for generating content based on current web information.
 
 #### `{agent}/server.py` - A2A Server
 **Role**: Expose agent capabilities via A2A protocol.
@@ -391,15 +438,15 @@ a2a_app = A2AStarletteApplication(
 class FoundryAgentExecutor(AgentExecutor):
     """Executes tasks using Azure AI Foundry agent"""
     
-    def __init__(self, card: AgentCard)
+    def __init__(self, card: AgentCard):
         # Store agent card
         # Initialize foundry agent reference (lazy load)
     
-    async def _get_or_create_agent(self)
+    async def _get_or_create_agent(self):
         # Lazy initialization of Azure AI agent
         # Returns TitleAgent or OutlineAgent instance
     
-    async def _process_request(self, message_parts, context_id, task_updater)
+    async def _process_request(self, message_parts, context_id, task_updater):
         # Main processing logic:
         # 1. Extract text from A2A message parts
         # 2. Get or create Foundry agent
@@ -409,14 +456,14 @@ class FoundryAgentExecutor(AgentExecutor):
         # 6. Mark task as complete
         # 7. Handle errors with failed status
     
-    async def execute(self, context: RequestContext, event_queue: EventQueue)
+    async def execute(self, context: RequestContext, event_queue: EventQueue):
         # Called by A2A framework to execute a task
         # 1. Create TaskUpdater
         # 2. Submit task
         # 3. Start work
         # 4. Process request
     
-    async def cancel(self, context: RequestContext, event_queue: EventQueue)
+    async def cancel(self, context: RequestContext, event_queue: EventQueue):
         # Handle cancellation requests
         # Mark task as failed with cancellation message
 ```
@@ -436,13 +483,13 @@ class FoundryAgentExecutor(AgentExecutor):
 class TitleAgent:  # or OutlineAgent
     """Azure AI Foundry Agent Service v2 wrapper"""
     
-    def __init__(self)
+    def __init__(self):
         # Initialize Azure credentials (DefaultAzureCredential)
         # Create AIProjectClient
         # Get OpenAI client from project client
         # Initialize agent and conversation state
     
-    async def create_agent(self)
+    async def create_agent(self):
         # Create agent using v2 API
         # Define agent with:
         #   - agent_name: Unique identifier
@@ -451,7 +498,7 @@ class TitleAgent:  # or OutlineAgent
         # Wrap sync API call in asyncio.to_thread()
         # Return created agent
     
-    async def run_conversation(self, user_message: str) -> list[str]
+    async def run_conversation(self, user_message: str) -> list[str]:
         # Run a stateless conversation:
         # 1. Create new conversation
         # 2. Send user message
@@ -459,11 +506,46 @@ class TitleAgent:  # or OutlineAgent
         # 4. Return output text
         # All sync calls wrapped in asyncio.to_thread()
     
-    async def close(self)
+    async def close(self):
         # Close OpenAI client
         # Close project client
         # Wrapped in asyncio.to_thread()
 ```
+
+#### Content Agent - Bing Search Grounding
+
+The **Content Agent** extends the standard agent pattern with **Bing Search grounding** capability, enabling it to generate content based on current web information.
+
+**Key Differences from Title/Outline Agents**:
+
+1. **Bing Grounding Tool Integration** (`content_agent/agent.py`):
+   - Uses `BingGroundingAgentTool` from Azure AI Projects SDK
+   - Configured with `BingGroundingSearchToolParameters` and `BingGroundingSearchConfiguration`
+   - Requires `BING_PROJECT_CONNECTION_ID` environment variable (Azure AI Foundry project connection)
+
+2. **Enhanced AI Instructions**:
+   - Explicitly instructs the agent: "Use the Bing search tool to gather current, accurate information to ground your content"
+   - Generates content based on real-time web search results
+   - Produces well-researched, factually grounded blog content (max 100 words)
+
+3. **AgentCard Capabilities**:
+   - Described as providing "well-researched blog content grounded in current information"
+   - Status messages indicate "Content Agent is processing your request with Bing search..."
+
+**Setup Requirements**:
+- Azure AI Foundry project with Bing Search connection configured
+- `BING_PROJECT_CONNECTION_ID` must be set to your project's Bing connection ID
+- Find connection ID in Azure AI Foundry portal under project connections
+
+**Architecture Pattern**:
+```
+ContentAgent
+    ├─> Azure AI Foundry Agent Service v2 (standard agent creation)
+    ├─> BingGroundingAgentTool (web search capability)
+    └─> Bing Search API (via Azure AI Foundry connection)
+```
+
+The Content Agent follows the same `server.py` → `agent_executor.py` → `agent.py` pattern as other agents, with the addition of Bing grounding configuration in the agent creation process.
 
 ---
 
@@ -471,7 +553,7 @@ class TitleAgent:  # or OutlineAgent
 
 ### End-to-End Request Flow
 
-Let's trace a complete request: **"Generate a title for an article about Python async programming"**
+Let's trace a complete request: **"Create a blog post about Python async programming"**
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -480,10 +562,10 @@ Let's trace a complete request: **"Generate a title for an article about Python 
 
 User (client.py)
     │
-    └─► send_prompt("Generate a title for Python async programming")
+    └─► send_prompt("Create a blog post about Python async programming")
             │
             └─► HTTP POST http://127.0.0.1:8003/message
-                Body: {"message": "Generate a title for Python async programming"}
+                Body: {"message": "Create a blog post about Python async programming"}
 
 ┌──────────────────────────────────────────────────────────────────────┐
 │ Phase 2: Routing Agent Receives Request                             │
@@ -494,49 +576,37 @@ routing_agent/server.py
     ├─► @app.post("/message")
     │   async def handle_message(request: Request)
     │       │
-    │       ├─► Extract: user_message = "Generate a title..."
+    │       ├─► Extract: user_message = "Create a blog post..."
     │       │
     │       └─► routing_agent.process_user_message(user_message)
     │
     └─► routing_agent/agent.py: RoutingAgent.process_user_message()
 
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Phase 3: Azure AI Agent Processing                                  │
+│ Phase 3: Parallel Agent Execution                                   │
 └──────────────────────────────────────────────────────────────────────┘
 
 RoutingAgent.process_user_message()
     │
-    ├─► 1. Send message to Azure AI agent via OpenAI API
-    │      openai_client.responses.create(
-    │          conversation=self.conversation_id,
-    │          input=user_message,
-    │          extra_body={"agent": {...}}
-    │      )
+    ├─► Simultaneously calls all three specialist agents using asyncio.gather():
+    │   
+    │   title_task = self.send_message_to_agent("AI Foundry Title Agent", user_message)
+    │   outline_task = self.send_message_to_agent("AI Foundry Outline Agent", user_message)
+    │   content_task = self.send_message_to_agent("AI Foundry Content Agent", user_message)
+    │   
+    │   title_result, outline_result, content_result = await asyncio.gather(
+    │       title_task, outline_task, content_task
+    │   )
     │
-    ├─► 2. Azure AI Agent analyzes request
-    │      Instructions: "Delegate to appropriate agent..."
-    │      Available tools: send_message_to_agent
-    │      Available agents: Title Agent, Outline Agent
-    │      
-    │      Decision: "This is a title generation task"
-    │      → Returns function_call: send_message_to_agent
-    │
-    └─► 3. Response contains function call:
-           {
-               "type": "function_call",
-               "name": "send_message_to_agent",
-               "call_id": "call_abc123",
-               "arguments": {
-                   "agent_name": "AI Foundry Title Agent",
-                   "task": "Generate a title for Python async programming"
-               }
-           }
+    └─► All three agents process concurrently (not sequentially)
+        - Each has 120s timeout protection
+        - Fails completely if ANY agent fails (all-or-nothing)
 
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Phase 4: Function Call Execution                                    │
+│ Phase 4: Title Agent Processing (Concurrent with Outline & Content) │
 └──────────────────────────────────────────────────────────────────────┘
 
-RoutingAgent.send_message_to_agent()
+RoutingAgent.send_message_to_agent("AI Foundry Title Agent", ...)
     │
     ├─► 1. Validate agent exists: "AI Foundry Title Agent" ✓
     │
@@ -548,128 +618,172 @@ RoutingAgent.send_message_to_agent()
     │      payload = {
     │          "message": {
     │              "role": "user",
-    │              "parts": [{"kind": "text", "text": "Generate a title..."}],
+    │              "parts": [{"kind": "text", "text": "Create a blog post..."}],
     │              "messageId": message_id
     │          }
     │      }
     │
-    └─► 4. Send via A2A protocol
-           send_response = await client.send_message(message_request)
+    └─► 4. Send via A2A protocol with timeout protection
+           try:
+               send_response = await client.send_message(message_request)
+           except httpx.TimeoutException:
+               return {"error": "Timeout waiting for response (timeout: 120s)"}
+           except httpx.ReadTimeout:
+               return {"error": "Read timeout from agent (timeout: 120s)"}
+           except httpx.ConnectTimeout:
+               return {"error": "Connection timeout to agent"}
            
            └─► HTTP POST http://127.0.0.1:8001/api/a2a/messages
                Headers: Content-Type: application/json
                Body: A2A protocol message
+               Timeout: 120 seconds (configurable)
 
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Phase 5: Title Agent Processes Request                              │
+│ Phase 5: Title Agent Processing (Concurrent)                        │
 └──────────────────────────────────────────────────────────────────────┘
 
-title_agent/server.py
-    │
-    └─► A2AStarletteApplication receives message
-            │
-            └─► DefaultRequestHandler.handle()
-                    │
-                    └─► FoundryAgentExecutor.execute()
+title_agent/server.py → title_agent/agent_executor.py → title_agent/agent.py
 
-title_agent/agent_executor.py: FoundryAgentExecutor.execute()
-    │
-    ├─► 1. Create TaskUpdater (for A2A status updates)
-    │      updater = TaskUpdater(event_queue, task_id, context_id)
-    │      await updater.submit()
-    │      await updater.start_work()
-    │
-    ├─► 2. Extract user message from A2A parts
-    │      user_message = message_parts[0].root.text
-    │
-    ├─► 3. Get TitleAgent instance
-    │      agent = await self._get_or_create_agent()
-    │
-    ├─► 4. Update task status
-    │      await updater.update_status(
-    │          TaskState.working,
-    │          message="Title Agent is processing..."
-    │      )
-    │
-    └─► 5. Run agent conversation
-           responses = await agent.run_conversation(user_message)
-
-title_agent/agent.py: TitleAgent.run_conversation()
+TitleAgent.run_conversation()
     │
     ├─► 1. Create new conversation with Azure AI
     │      conversation = openai_client.conversations.create()
     │
     ├─► 2. Send message to Azure AI agent
-    │      response = openai_client.responses.create(
-    │          conversation=conversation.id,
-    │          input=user_message,
-    │          extra_body={"agent": {"name": "title-agent-v2", ...}}
-    │      )
-    │
-    ├─► 3. Azure AI Model processes request
-    │      Model: gpt-4o (or configured model)
+    │      Model: gpt-4o
     │      Instructions: "Generate catchy blog post title..."
-    │      Input: "Generate a title for Python async programming"
+    │      Input: "Create a blog post about Python async programming"
     │      
     │      → Model generates: "Mastering Python Async: A Developer's Guide"
     │
-    └─► 4. Return response text
+    └─► 3. Return via A2A protocol:
+           {"result": {"state": "completed", "artifacts": [{"parts": [{"text": "..."}]}]}}
 
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Phase 6: Title Agent Completes Task                                 │
+│ Phase 6: Outline Agent Processing (Concurrent)                      │
 └──────────────────────────────────────────────────────────────────────┘
 
-FoundryAgentExecutor._process_request()
-    │
-    ├─► responses = ["Mastering Python Async: A Developer's Guide"]
-    │
-    ├─► Update task with response
-    │   await updater.update_status(
-    │       TaskState.working,
-    │       message="Mastering Python Async: A Developer's Guide"
-    │   )
-    │
-    └─► Complete task
-        await updater.complete(
-            message="Mastering Python Async: A Developer's Guide"
-        )
+outline_agent/server.py → outline_agent/agent_executor.py → outline_agent/agent.py
 
-A2A Response sent back to Routing Agent:
-    {
-        "result": {
-            "id": "task_123",
-            "state": "completed",
-            "artifacts": [{
-                "parts": [{"text": "Mastering Python Async: A Developer's Guide"}]
-            }]
-        }
-    }
+OutlineAgent.run_conversation()
+    │
+    ├─► Similar process as Title Agent
+    │   Model: gpt-4o
+    │   Instructions: "Create concise outline with 4-6 sections..."
+    │   Input: "Create a blog post about Python async programming"
+    │   
+    │   → Model generates:
+    │     "1. Introduction to Async
+    │      2. Event Loop Basics
+    │      3. Async/Await Syntax
+    │      4. Common Patterns
+    │      5. Error Handling
+    │      6. Best Practices"
+    │
+    └─► Return via A2A protocol
 
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Phase 7: Routing Agent Sends Tool Output Back                       │
+│ Phase 7: Content Agent Processing (Concurrent) - WITH BING SEARCH   │
+└──────────────────────────────────────────────────────────────────────┘
+
+content_agent/server.py → content_agent/agent_executor.py → content_agent/agent.py
+
+ContentAgent.run_conversation()
+    │
+    ├─► 1. Create Azure AI agent with BingGroundingAgentTool
+    │      Model: gpt-4o
+    │      Tool: Bing Search (via project connection)
+    │      Instructions: "Generate brief blog content... Use Bing search tool..."
+    │      
+    ├─► 2. Agent automatically uses Bing Search
+    │      → Searches web for "Python async programming"
+    │      → Retrieves current information, articles, best practices
+    │      → Grounds content generation in search results
+    │
+    ├─► 3. Model generates content based on Bing results:
+    │      "Python's async programming enables efficient handling of I/O-bound 
+    │       operations. Using async/await syntax, developers can write concurrent 
+    │       code that doesn't block execution. Modern frameworks like FastAPI and 
+    │       aiohttp leverage async for high-performance applications..."
+    │      (Max 100 words, grounded in current web information)
+    │
+    └─► 4. Return via A2A protocol
+
+┌──────────────────────────────────────────────────────────────────────┐
+│ Phase 8: Combine Results and Return to User                         │
 └──────────────────────────────────────────────────────────────────────┘
 
 RoutingAgent.process_user_message()
     │
-    ├─► Parse Title Agent response
-    │   result = json.loads(response)
-    │   
-    ├─► Create tool output
-    │   tool_outputs = [{
-    │       "type": "function_call_output",
-    │       "call_id": "call_abc123",
-    │       "output": "{...task result...}"
-    │   }]
+    ├─► All three agents have completed (via asyncio.gather)
+    │   title_result = {... Title Agent response ...}
+    │   outline_result = {... Outline Agent response ...}
+    │   content_result = {... Content Agent response ...}
     │
-    ├─► Send tool outputs back to Azure AI agent
-    │   response = openai_client.responses.create(
-    │       input=tool_outputs,
-    │       previous_response_id=self.last_response_id,
-    │       extra_body={"agent": {...}}
-    │   )
+    ├─► Parse responses from A2A task data
+    │   title = extract_text(title_result)
+    │   outline = extract_text(outline_result)
+    │   content = extract_text(content_result)
     │
-    └─► Azure AI agent processes tool output
-        → Generates final user-facing response:
+    ├─► Combine into structured JSON
+    │   response = {
+    │       "title": "Mastering Python Async: A Developer's Guide",
+    │       "outline": "1. Introduction...\n2. Event Loop...",
+    │       "content": "Python's async programming enables..."
+    │   }
+    │
+    └─► Return combined result
+
+routing_agent/server.py
+    │
+    └─► return {"response": json.dumps(response)}
+
+client.py
+    │
+    └─► Display to user:
+        {
+            "title": "Mastering Python Async: A Developer's Guide",
+            "outline": "1. Introduction to Async\n2. Event Loop Basics...",
+            "content": "Python's async programming enables efficient..."
+        }
+```
+
+### Key Flow Observations
+
+1. **Parallel Batch Processing Architecture**:
+   - Routing Agent calls **all three specialist agents simultaneously**
+   - Uses `asyncio.gather()` for concurrent execution
+   - All-or-nothing: fails completely if any agent fails
+   - No intelligent routing decision - always processes all three agents
+
+2. **Content Agent with Bing Grounding**:
+   - Automatically searches web for current information
+   - Generates content based on real-time search results
+   - Provides factually grounded, up-to-date blog content
+   - Requires Bing Search connection in Azure AI Foundry project
+
+3. **Structured Output Format**:
+   - System always returns JSON with three fields: `title`, `outline`, `content`
+   - Consistent format regardless of user input
+   - Each field contains specialist agent's response
+
+4. **Protocol Separation**:
+   - User ↔ Routing Agent: Simple HTTP JSON
+   - Routing Agent ↔ Specialist Agents: A2A protocol (standardized agent communication)
+   - All Agents ↔ Azure AI: OpenAI-compatible API
+   - Content Agent ↔ Bing Search: Azure AI Foundry connection
+
+5. **Asynchronous Processing**:
+   - All I/O operations use async/await
+   - Three agents queried concurrently (not sequentially)
+   - Non-blocking server implementations
+   - **Timeout protection** prevents indefinite waiting (default: 120s per agent)
+
+6. **State Management**:
+   - Routing Agent: Maintains conversation state across user turns (not used in current implementation)
+   - Specialist Agents: Stateless per A2A request (new conversation each time)
+   - Azure AI: Manages conversation history in cloud
+   - **Timeout configuration** persists across agent lifecycle
            "I've generated a title for your article: 
             'Mastering Python Async: A Developer's Guide'"
 
@@ -684,30 +798,6 @@ routing_agent/server.py
 client.py
     │
     └─► Display to user:
-        "Agent: I've generated a title for your article: 
-         'Mastering Python Async: A Developer's Guide'"
-```
-
-### Key Flow Observations
-
-1. **Two-Level Agent Hierarchy**:
-   - Routing Agent: High-level orchestration with Azure AI decision-making
-   - Specialist Agents: Domain-specific execution with Azure AI capabilities
-
-2. **Protocol Separation**:
-   - User ↔ Routing Agent: Simple HTTP JSON
-   - Routing Agent ↔ Specialist Agents: A2A protocol (standardized agent communication)
-   - All Agents ↔ Azure AI: OpenAI-compatible API
-
-3. **Asynchronous Processing**:
-   - All I/O operations use async/await
-   - Multiple agents can be queried concurrently
-   - Non-blocking server implementations
-
-4. **State Management**:
-   - Routing Agent: Maintains conversation state across user turns
-   - Specialist Agents: Stateless per A2A request
-   - Azure AI: Manages conversation history in cloud
 
 ---
 
@@ -1162,7 +1252,9 @@ if isinstance(send_response.root, SendMessageSuccessResponse):
 from a2a.client import A2ACardResolver
 import httpx
 
-async with httpx.AsyncClient() as client:
+# Configure timeout for card resolution
+timeout_config = httpx.Timeout(timeout=120.0, connect=60.0)
+async with httpx.AsyncClient(timeout=timeout_config) as client:
     card_resolver = A2ACardResolver(client, agent_url)
     agent_card = await card_resolver.get_agent_card()
     # Returns AgentCard from {agent_url}/api/a2a/agent-card
@@ -1174,12 +1266,17 @@ async with httpx.AsyncClient() as client:
 from a2a.client import A2AClient
 import httpx
 
-httpx_client = httpx.AsyncClient(timeout=30)
+# Configure timeout for message sending
+timeout_config = httpx.Timeout(timeout=120.0, connect=60.0)
+httpx_client = httpx.AsyncClient(timeout=timeout_config)
 a2a_client = A2AClient(httpx_client, agent_card, url=agent_url)
 
-# Send message
-response = await a2a_client.send_message(message_request)
-# POSTs to {agent_url}/api/a2a/messages
+# Send message (will timeout after configured duration)
+try:
+    response = await a2a_client.send_message(message_request)
+except httpx.TimeoutException:
+    # Handle timeout appropriately
+    print(f"Request timed out after {timeout_config.timeout}s")
 ```
 
 **Connection Pattern in This Project**:
@@ -1188,8 +1285,10 @@ response = await a2a_client.send_message(message_request)
 class RemoteAgentConnections:
     """Wrapper for A2A client connection"""
     
-    def __init__(self, agent_card: AgentCard, agent_url: str):
-        self._httpx_client = httpx.AsyncClient(timeout=30)
+    def __init__(self, agent_card: AgentCard, agent_url: str, timeout: float = 120.0):
+        # Configure timeout for all HTTP operations
+        timeout_config = httpx.Timeout(timeout=timeout, connect=60.0)
+        self._httpx_client = httpx.AsyncClient(timeout=timeout_config)
         self.agent_client = A2AClient(
             self._httpx_client,
             agent_card,
@@ -1198,6 +1297,7 @@ class RemoteAgentConnections:
         self.card = agent_card
     
     async def send_message(self, message_request):
+        # Will timeout based on configured duration
         return await self.agent_client.send_message(message_request)
     
     async def close(self):
@@ -1514,21 +1614,45 @@ app = Starlette(routes=routes)
 ```python
 import httpx
 
-# Async context manager
-async with httpx.AsyncClient(timeout=30) as client:
+# Async context manager with timeout
+timeout_config = httpx.Timeout(timeout=120.0, connect=60.0)
+async with httpx.AsyncClient(timeout=timeout_config) as client:
     response = await client.get("http://example.com")
     response = await client.post(
         "http://example.com/api",
         json={"key": "value"}
     )
 
-# Long-lived client
-client = httpx.AsyncClient(timeout=30)
+# Long-lived client with custom timeout
+timeout_config = httpx.Timeout(timeout=120.0, connect=60.0)
+client = httpx.AsyncClient(timeout=timeout_config)
 try:
     response = await client.get("...")
 finally:
     await client.aclose()
 ```
+
+**Timeout Configuration**:
+
+httpx supports granular timeout control:
+
+```python
+# Simple timeout (applies to all operations)
+httpx.Timeout(timeout=30.0)
+
+# Granular timeout control
+httpx.Timeout(
+    timeout=120.0,  # Total operation timeout
+    connect=60.0,   # Connection establishment timeout
+    read=90.0,      # Reading response timeout
+    write=30.0,     # Writing request timeout
+    pool=5.0        # Acquiring connection from pool timeout
+)
+```
+
+In this project, we use:
+- **Total timeout**: 120 seconds (default, configurable)
+- **Connect timeout**: 60 seconds (connection establishment)
 
 ### 6. uvicorn
 
@@ -1575,10 +1699,13 @@ model_name = os.environ["MODEL_DEPLOYMENT_NAME"]
 ```bash
 PROJECT_ENDPOINT=https://xxx.services.ai.azure.com/api/projects/xxx
 MODEL_DEPLOYMENT_NAME=gpt-4o
+BING_PROJECT_CONNECTION_ID=connection-abc123  # Required for Content Agent with Bing grounding
 SERVER_URL=127.0.0.1
 TITLE_AGENT_PORT=8001
 OUTLINE_AGENT_PORT=8002
+CONTENT_AGENT_PORT=8004
 ROUTING_AGENT_PORT=8003
+AGENT_TIMEOUT=120  # Optional: timeout in seconds for A2A communication (default: 120)
 ```
 
 ---
@@ -1602,10 +1729,13 @@ ROUTING_AGENT_PORT=8003
    ```bash
    PROJECT_ENDPOINT=https://your-project.services.ai.azure.com/api/projects/your-project
    MODEL_DEPLOYMENT_NAME=your-model-deployment-name
+   BING_PROJECT_CONNECTION_ID=your-bing-connection-id
    SERVER_URL=127.0.0.1
    TITLE_AGENT_PORT=8001
    OUTLINE_AGENT_PORT=8002
+   CONTENT_AGENT_PORT=8004
    ROUTING_AGENT_PORT=8003
+   AGENT_TIMEOUT=120  # Optional: timeout in seconds for A2A communication (default: 120)
    ```
 
 2. **Install dependencies**:
@@ -1635,6 +1765,11 @@ uvicorn title_agent.server:app --host 127.0.0.1 --port 8001
 uvicorn outline_agent.server:app --host 127.0.0.1 --port 8002
 ```
 
+#### Content Agent
+```bash
+uvicorn content_agent.server:app --host 127.0.0.1 --port 8004
+```
+
 #### Routing Agent
 ```bash
 uvicorn routing_agent.server:app --host 127.0.0.1 --port 8003
@@ -1654,7 +1789,11 @@ Each agent exposes a health endpoint:
 curl http://127.0.0.1:8001/health
 
 # Outline Agent
+# Outline Agent
 curl http://127.0.0.1:8002/health
+
+# Content Agent
+curl http://127.0.0.1:8004/health
 
 # Routing Agent
 curl http://127.0.0.1:8003/health
@@ -1782,12 +1921,16 @@ The agents themselves (TitleAgent, OutlineAgent, RoutingAgent) are **not deploye
    - Azure AI Foundry API latency
    - Error rates and types
    - A2A message success/failure rates
+   - **Timeout occurrences** by agent and timeout type
+   - **Average response times** compared to timeout thresholds
 
 3. **Logging Best Practices**:
    - Log all A2A message exchanges
    - Log Azure AI agent function calls
    - Include correlation IDs across services
    - Sanitize sensitive data from logs
+   - **Log timeout events** with agent name and timeout duration
+   - **Log slow requests** that approach timeout threshold
 
 ### Environment Variables Reference
 
@@ -1795,12 +1938,28 @@ The agents themselves (TitleAgent, OutlineAgent, RoutingAgent) are **not deploye
 |----------|-------------|---------|---------|
 | `PROJECT_ENDPOINT` | Azure AI Foundry project URL | `https://xxx.services.ai.azure.com/api/projects/xxx` | *Required* |
 | `MODEL_DEPLOYMENT_NAME` | Azure OpenAI model deployment | `gpt-4o` | *Required* |
+| `BING_PROJECT_CONNECTION_ID` | Azure AI Foundry project connection ID for Bing Search (used by Content Agent) | `connection-abc123` | *Required for Content Agent* |
 | `SERVER_URL` | Host for local servers | `127.0.0.1` or `0.0.0.0` | *Required* |
 | `TITLE_AGENT_PORT` | Title Agent server port | `8001` | *Required* |
 | `OUTLINE_AGENT_PORT` | Outline Agent server port | `8002` | *Required* |
+| `CONTENT_AGENT_PORT` | Content Agent server port | `8004` | *Required* |
 | `ROUTING_AGENT_PORT` | Routing Agent server port | `8003` | *Required* |
 | `AGENT_TIMEOUT` | Timeout (seconds) for agent-to-agent communication | `120` | `120` |
 | `HEALTH_CHECK_TIMEOUT` | Timeout (seconds) for waiting for agents to become ready | `60` | `60` |
+
+**Timeout Configuration Guidelines**:
+
+- **Default (120s)**: Suitable for most scenarios with typical LLM response times
+- **Short (30-60s)**: For fast-failing systems that need quick error detection
+- **Extended (300-600s)**: For complex tasks with long-running agent processing
+- **Connection timeout**: Set to ~50% of total timeout (e.g., 60s for 120s total)
+
+**Tuning Recommendations**:
+
+1. Monitor actual agent response times in production
+2. Set timeout to P95 response time + buffer (e.g., 2x P95)
+3. Consider separate timeouts for different agent types if response times vary significantly
+4. Log timeout events to identify agents that need optimization
 
 ---
 
@@ -1808,11 +1967,14 @@ The agents themselves (TitleAgent, OutlineAgent, RoutingAgent) are **not deploye
 
 This system demonstrates a **production-ready architecture** for building distributed AI agent systems with:
 
-1. **Clear separation of concerns**: Routing vs. specialist agents
+1. **Clear separation of concerns**: Routing vs. specialist agents (Title, Outline, Content)
 2. **Standardized communication**: A2A protocol for inter-agent messaging
 3. **Cloud-native AI**: Azure AI Foundry Agent Service v2 for hosting intelligence
-4. **Async processing**: Non-blocking, concurrent request handling
-5. **Extensibility**: Easy to add new specialist agents
-6. **Observable**: Built-in health checks and task status tracking
+4. **Bing Search grounding**: Content Agent integrates real-time web search for factually grounded content
+5. **Parallel batch processing**: All specialist agents execute concurrently via asyncio.gather()
+6. **Async processing**: Non-blocking, concurrent request handling
+7. **Extensibility**: Easy to add new specialist agents
+8. **Observable**: Built-in health checks and task status tracking
+9. **Reliable**: Configurable timeout protection for all agent-to-agent communication
 
-The architecture is designed to scale horizontally, support multiple agent types, and integrate seamlessly with Azure's managed AI services while maintaining flexibility for custom deployment scenarios.
+The architecture is designed to scale horizontally, support multiple agent types, integrate seamlessly with Azure's managed AI services (including Bing Search), and provide robust error handling through configurable timeout mechanisms while maintaining flexibility for custom deployment scenarios. The system returns structured JSON output combining title, outline, and web-grounded content.
