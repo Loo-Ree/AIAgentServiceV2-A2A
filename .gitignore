@@ -1,0 +1,29 @@
+# Environment files
+.env
+.env.*
+*.env
+
+# Build outputs
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Development settings
+appsettings.Development.json
